@@ -16,6 +16,7 @@ $initem = Get-Item $infile
 $directory = $initem.Directory.FullName
 $outfile=$($initem.BaseName + ".csv")
 
+
 $output_file = [System.IO.StreamWriter] $("$directory\$outfile")
 
 echo "Reading in the .evtx."
@@ -25,10 +26,12 @@ echo "Finding unique fields."
 # first pull out all unique field names
 # iterate over every event and add the field names to an array. only add if they don't already exist in the array
 $fields=@()
+$fields += "Message"
+#$fields += "TimeCreated"
 foreach ($Event in $events) { 
     $xml = [xml]($Event.ToXml())
     foreach ($s in $xml.Event.System.ChildNodes) {
-        if ($fields -notcontains $s.Name) {
+        if ($fields -notcontains $s.Name -and $s.Name -ne "Microsoft-Windows-Security-Auditing") {
             $fields += $s.Name
         }
     }
@@ -45,12 +48,18 @@ echo "Processing lines."
 foreach ($Event in $events) { 
     # hash of fields and their values in this event
     $line=@{}
+	$line.add("Message", ($Event.Message-split '\n')[0].replace("`n","").replace("`r",""))
     $line.add("TimeCreated", $Event.TimeCreated.ToString())
-    $xml = [xml]($Event.ToXml())
+	$xml = [xml]($Event.ToXml())
     foreach ($s in $xml.Event.System.ChildNodes) {
-      if ($s.InnerText) {
-        $line.Add($s.Name, $s.InnerText)
-      }        
+		if ($s.InnerText) {
+			$line.Add($s.Name, $s.InnerText)
+
+		}
+		#if ($s.Name -eq "TimeCreated") {
+		#	echo $s
+		#}
+        
     }
     foreach ($d in $xml.Event.EventData.Data) {
         $text = $d.InnerText
@@ -73,9 +82,7 @@ foreach ($Event in $events) {
 echo ("Processed " + $lines.Length + " events.")
 # write the header
 foreach ($field in $fields) {
-	if ($field -ne "Microsoft-Windows-Security-Auditing"){
-		$output_file.Write($field + ",")
-	}
+    $output_file.Write($field + ",")
 }
 $output_file.WriteLine()
 
@@ -84,9 +91,7 @@ echo "Writing output file"
 foreach ($line in $lines) {
     # check each line for a field matching every header value. 
     foreach ($field in $fields) {
-      if ($field -ne "Microsoft-Windows-Security-Auditing"){
-		    $output_file.Write($line.$field + ",")
-		  }
+        $output_file.Write($line.$field + ",")
     }
     $output_file.WriteLine()
 }
