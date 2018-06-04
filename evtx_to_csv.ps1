@@ -75,7 +75,7 @@ foreach ($Event in $events) {
         }
         # if the element does not have a name, then it is a poorly formatted event log. 
         # treat the element as a piece of text without key/value and create placeholder field names
-        else {
+        elseif ($d) {
             $text = $d
             $text = $text.replace("`n","\n").replace("`r","\n")
             $newfield = "unlabeled" + ([int]$unlabled_fields.count + 1)
